@@ -1,6 +1,8 @@
 # Maths & Statistics Coursework
 
-This repository contains coursework completed as part of my MSc Bioinformatics programme, with a focus on statistical analysis, mathematical modelling, and reproducible workflows in R.
+This repository contains coursework completed as part of my MSc Bioinformatics programme, focusing on statistical simulation, data analysis, and reproducible workflows in R.
+
+The coursework covers two main analyses in R: a Markov chain-style simulation of the Mountain Climb game, and a BMI data analysis workflow involving cleaning, PCA-based outlier detection, and regression modelling.
 
 ## Repository Structure
 
@@ -8,20 +10,23 @@ This repository contains coursework completed as part of my MSc Bioinformatics p
 maths-statistics-coursework/
 ├── README.md
 ├── data/
-│   └── assess_data_1225.Rdata      # Dataset used for analysis
+│   └── assess_data_1225.Rdata      # Data object used from Question 5 onwards
 ├── scripts/
 │   └── EMS_Coursework_Functions.R  # Supporting R functions
 └── reports/
     ├── EMS_Coursework.Rmd          # Source R Markdown file
-    └── EMS_Coursework.html         # Rendered HTML output
+    └── EMS_Coursework.html         # Rendered analysis output
 ```
 
 ## Skills Demonstrated
 
-* Statistical analysis and modelling
-* Data handling and transformation in R
-* Reproducible research workflows
-* R Markdown reporting
+* R programming
+* Statistical simulation
+* Data cleaning and quality control
+* PCA-based outlier detection
+* Regression modelling
+* Statistical interpretation of results
+* Reproducible research workflows with R Markdown
 
 ## Reproducibility
 
@@ -32,12 +37,16 @@ To reproduce this analysis:
 3. Ensure the working directory is set to the project root
 4. Run all code chunks or knit the document
 
-## Tools Used
+The final results and outputs can be viewed directly in the rendered HTML report.
+
+## Tools and Packages
 
 * R
 * R Markdown
+* ggplot2
+* knitr
 
 ## Author
 
-Ammarah Kathawala  
+**Ammarah Kathawala**  
 MSc Bioinformatics

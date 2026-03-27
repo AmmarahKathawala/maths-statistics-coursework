@@ -22,7 +22,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r import-functions, include=FALSE}
 #Import functions from the separate R script
-source("scripts/EMS_Coursework_Functions.R")
+source("../scripts/EMS_Coursework_Functions.R")
 ```
 
 **1  Markov Chain Game Simulations**
@@ -266,7 +266,7 @@ load("data/assess_data_1225.Rdata")
 
 ```{r q5-original-code, echo=TRUE, eval = FALSE}
 #Load the dataset used throughout the analysis
-load("data/assess_data_1225.Rdata")  
+load("../data/assess_data_1225.Rdata")  
 #ERROR: file not found, tries to load from a non-existent subfolder "data/"
 #FIX: use `load("assess_data_1225.Rdata")` if the file is in the working directory
 

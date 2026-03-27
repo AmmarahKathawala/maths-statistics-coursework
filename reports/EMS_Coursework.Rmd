@@ -659,37 +659,3 @@ plot(ml_fit, 2)
 
 The Q–Q plot shows residuals lying very close to the reference line, with only minor deviations in the extreme tails. This indicates that the normality assumption is well satisfied. Compared with the simple BMI-only model, the multiple regression model provides a much better approximation to normally distributed errors and captures the underlying structure of the data more effectively.
 
-Disclaimer
----
-
-ChatGPT was used only to troubleshoot minor coding errors, confirm that my functions met the requirements of each question, and assist with small HTML formatting improvements. All written explanations were carried out independently. Below are examples of the prompts and brief outputs used:
-
- 1) Prompt: "Why is my PCA not scaling? I wrote `prcomp(data, scale = TRUE)` but it doesn’t seem to work."
- 
- Response: “In `prcomp()`, the correct argument is scale. rather than scale. Use `prcomp(data, center = TRUE, scale. = TRUE)` to ensure variables are standardised.”
- 
- 2) Prompt: “I am getting a ggplot warning about `..density..` being deprecated. Do I need to fix this?”
- 
- Response: “This warning is harmless. The histogram will still render correctly. You can optionally replace `..density..` with `after_stat(density)`, but it is not required.”
- 
- 3) Prompt: “My `play_mc()` function always returns 70 even on the first move. What is wrong?”
- 
- Response: “You have the line `if (pos < 70) { pos <- 70 }`, which forces every move to the summit. Replace it with `pos <- start_pos + die` and apply slide/climb rules afterward.”
- 
- 4) Prompt: “Do I need to explicitly write `n_simulations = 100` and `n_turns = 10` if they’re already the defaults?”
- 
- Response: “The function will work without specifying them, but including the values makes your code clearer to the marker and shows you are intentionally using the required settings.”
-
- 5) Prompt: “How can I display my summary tables neatly in the knitted HTML document? I get marked on presentation.”
-
-Response: “`kable()` is a good choice for clean HTML tables. You can format your table by writing:
-
-kable(your_table,
-      caption = "Summary Statistics",
-      align = "c")
-
-This will centre the columns and produce a clear, readable table in the HTML output. You do not need additional styling unless you want to customise the appearance further.”
-
-6) Prompt: “What thresholds should I use to flag implausible BMI values for adults in this dataset?”
-
-Response: “Typical adult BMI values cluster around 20–30, so values very close to 0 or in the hundreds almost certainly reflect data entry or unit errors rather than real measurements. As a pragmatic QC rule, you can treat BMI values < 10 or > 50 as implausible and recalculate them using the standard formula from weight and height, while still allowing realistic high-BMI individuals to remain in the dataset.”

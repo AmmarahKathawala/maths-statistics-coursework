@@ -1,0 +1,695 @@
+---
+title: "EMS_Coursework"
+author: "Ammarah Kathawala"
+date: "2025-11-10"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+#Load required packages
+library(ggplot2)
+library(knitr)
+library(gridExtra)
+
+#Set theme for HTML document
+theme_set(theme_bw())
+
+#Shows R code in the knitted HTML document
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r import-functions, include=FALSE}
+#Import functions from the separate R script
+source("EMS_Coursework_Functions.R")
+```
+
+**1  Markov Chain Game Simulations**
+---
+
+### Question 1, Single Move Simulation: 
+
+The original code snippet contained several issues. Below is the corrected version, rewritten to follow the Mountain Climb rules. Each line is commented to explain its purpose:
+
+```{r playmc-function, echo=TRUE}
+#Simulates a single move in the Mountain Climb game
+
+play_mc <- function(
+    #Input parameters follow those in the brief
+    start_pos = 0,
+    max_pos = 70,
+    slippery_squares = c(9, 18, 27, 36, 45, 54, 63),
+    climbing_squares = c(16, 32, 48, 64),
+    slip_back_range = 1:3,
+    climb_up_amount = 5) {
+  
+  #Roll one fair die
+  die <- sample.int(6, 1)
+  
+  #Update position based on die roll output
+  pos <- start_pos + die
+  
+  #Apply board rules if still below summit
+  if (pos < max_pos) {
+    
+    #Slide backwards on slippery squares
+    if (pos %in% slippery_squares) {
+      pos <- max(0, pos - sample(slip_back_range, 1))
+    }
+    
+    #Climb upwards on climbing squares
+    if (pos %in% climbing_squares) {
+      pos <- pos + climb_up_amount
+    }
+  }
+  
+  #Cap position at summit
+  pos <- min(pos, max_pos)
+  
+  #Return updated position after applying Mountain Climb rules
+  return(pos)
+}
+```
+
+**Explanation of corrections:**  
+
+The original function contained several logical and structural errors, they were fixed by:
+
+- Adding parameters (`max_pos`, `slippery_squares`, `climbing_squares`, `slip_back_range`, and `climb_up_amount`) so the function now follows full Mountain Climb rules.  
+- Replacing `if (pos < 70) { pos <- 70 }` (which sent every move directly to the summit), with correct dice‑roll updating (`pos <- start_pos + die`).
+- Adding boundary checks using `max(0, …)` and `min(pos, max_pos)` to keep positions within the valid range.
+
+**Function Output Explanation:**  
+
+```{r playmc-demo, echo=TRUE}
+#Test to show the play_mc() function returns a single move
+
+#Set seed for reproducibility
+set.seed(123)
+play_mc(0)
+```
+
+The number below shows the player’s updated position after one dice roll, including any slide or climb effects. This confirms that the `play_mc()` function produces a valid single-move update.
+
+### Question 2, Full Game Simulation:
+
+The function `play_mc_full()` extends `play_mc()` to simulate an entire Mountain Climb game. At each turn, it updates the player’s position using the game rules and records the full sequence of positions until the summit is reached. The function returns a list containing the position history and the total number of turns required to finish the game.
+
+The demonstration below uses the default parameters. The table shows the player’s position after each turn, and `game$turns_taken` reports the total number of turns to reach the summit. In this simulation, the summit is reached in `19` turns.
+
+```{r playmcfull-demo, echo=TRUE}
+#Test to demonstrate that play_mc_full() runs a full game to the summit
+
+set.seed(123) 
+game <- play_mc_full()
+
+#Create matrix with two columns: Turn and Position
+turn_position_matrix <- cbind(
+  
+  #Generates turn labels starting at 0 for reproducible indexing
+  Turn = seq_along(game$pos_history) - 1,
+  
+  #Position after each turn
+  Position = game$pos_history              
+)
+
+#Display as a clean table for knitted output
+kable(
+  turn_position_matrix,
+  caption = "Mountain Climb: Position at Each Turn",
+  align = c("c", "c")
+)
+```
+
+### Question 3, Repeated Simulations:
+
+The function `simulate_climbs()` has been sourced and demonstrated below using default parameters. It runs multiple games, records the turns taken in each one, and returns summary statistics across all simulations. The function is then used to run 100 simulations, from which we summarise the distribution of turns taken and visualise the results.
+
+```{r simulateclimbs-demo, fig.align='center', echo=TRUE}
+#Test to demonstrate that simulate_climbs() runs multiple games and summarises the results
+
+set.seed(123)
+sim_res <- simulate_climbs(n_simulations = 100)
+
+#Show table for summary statistics of turns taken across simulations 
+turns_summary_table <- data.frame(
+  Statistic = c("Mean", "Median", "SD"),
+  Value = as.numeric(sim_res$turns_stats)
+)
+
+#Display as neat table for HTML doc
+kable(
+  turns_summary_table,
+  caption = "Summary Statistics for Number of Turns (100 Simulations)",
+  align = c("c", "c")
+)
+```
+
+**Interpretation:**  
+
+Using `set.seed(123)`, the average number of turns across 100 simulations was `19.85` (median = `20`, SD ≈ `2.4`). The histogram shows that most games complete between about 16 and 24 turns, which is consistent with the variability introduced by dice rolls and the slide and climb squares.
+
+```{r simulateclimbs-hist, fig.align='center', echo=TRUE}
+#Create a data frame of the turns from all 100 simulation
+turns_df <- data.frame(
+  Turns = sim_res$turns_vector)
+
+#Create histogram of turns taken across all simulations
+ggplot(turns_df, aes(x = Turns)) +
+  geom_histogram(binwidth = 1, fill = "#7683d6", colour = "white") +
+  labs(
+    title = "Distribution of Turns Taken to Reach the Summit (100 Simulations)",
+    x = "Number of Turns",
+    y = "Frequency"
+  )
+```
+
+### Question 4, Position After Fixed Turns:
+
+To investigate the typical position reached after a fixed number of turns, we create a new function, `simulate_pos_at()`, which simulates each game for a specified number of turns (`10` by default) and records the position reached after those turns. We first estimate the average position after 10 turns under the default parameters. We then repeat the simulation using a wider slip range (`4:8`) and a smaller climb reward (`2`) to examine how these changes affect player progress.
+
+```{r simulateposat-default-demo, fig.align='center', echo=TRUE}
+#Test to demonstrate that simulate_pos_at() estimates the position reached after 10 turns
+
+set.seed(123)
+
+#Run 100 simulations and record the position reached after 10 turns
+pos_res_default <- simulate_pos_at(
+  n_simulations = 100, n_turns = 10
+)
+
+#Create a summary table of the position statistics
+pos_table <- data.frame(
+  Statistic = c("Mean", "Variance", "SD"), 
+  Value = round(as.numeric(pos_res_default$pos_stats), 2)
+)
+
+#Display table neatly for the knitted output
+kable(
+  pos_table,
+  caption = "Summary Statistics for Player Position After 10 Turns (100 Simulations)",
+  align = "c"
+)
+```
+
+```{r simulateposat-default-hist, fig.align='center', echo=TRUE}
+#Create data frame for positions from all 100 simulations
+df_pos_default <- data.frame(
+  Position = pos_res_default$pos_vector)
+
+#Plot a histogram of positions reached after 10 turns under default rules
+ggplot(df_pos_default, aes(x = Position)) +
+  geom_histogram(binwidth = 3, fill = "forestgreen", colour = "white") +
+  labs(
+    title = "Distribution of Position After 10 Turns (Default Parameters)",
+    x = "Position after 10 turns",
+    y = "Frequency"
+  )
+```
+
+**Interpretation:**  
+
+Under the default rules, the average position after 10 turns is about `35` (mean = `35.12`, variance ≈ `44`), with most players finishing between positions `30 and 40`. When `slip_back_range` is increased to `4:8` and `climb_up_amount` is reduced to `2`, the average position drops to around `30` (mean = `29.58`) and the variance increases slightly (variance ≈ `50`). This occurs because players now slip back further and climb less per turn, reducing overall progress after the same number of turns.
+
+```{r simulateposat-altered-demo, fig.align='center', echo=TRUE}
+#Test to demonstrate how changing slip and climb rules affects position after 10 turns
+
+set.seed(123)
+
+#Run 100 simulations using a wider slip range and a smaller climb reward
+pos_res_alt <- simulate_pos_at(
+  n_simulations = 100,
+  n_turns = 10,
+  slip_back_range = 4:8,
+  climb_up_amount = 2
+)
+
+#Create a summary table of the altered position statistics
+pos_table_alt <- data.frame(
+  Statistic = c("Mean", "Variance", "SD"),                 
+  Value = round(as.numeric(pos_res_alt$pos_stats), 2)  
+)
+
+#Display table neatly for the knitted output
+kable(
+  pos_table_alt,
+  caption = "Summary Statistics for Position After 10 Turns (Adjusted Slip/Climb)",
+  align = "c"
+)
+```
+
+```{r simulateposat-altered-hist, fig.align='center', echo=TRUE}
+#Create a data frame containing the positions from the altered simulations
+df_pos_alt <- data.frame(
+  Position = pos_res_alt$pos_vector)
+
+#Plot a histogram of positions reached after 10 turns with adjusted slip/climb rules
+ggplot(df_pos_alt, aes(x = Position)) +
+  geom_histogram(binwidth =3, fill = "forestgreen", colour = "white") +
+  labs(
+    title = "Distribution of Position After 10 Turns (Adjusted Slip/Climb)",
+    x = "Position after 10 turns",
+    y = "Frequency"
+  )
+```
+
+**2  Data Analysis**
+---
+
+```{r load-data, echo=FALSE}
+#Load the dataset used throughout the analysis
+load("assess_data_1225.Rdata")
+```
+
+### Question 5, Code Review:
+
+```{r q5-original-code, echo=TRUE, eval = FALSE}
+#Load the dataset used throughout the analysis
+load("data/assess_data_1225.Rdata")  
+#ERROR: file not found, tries to load from a non-existent subfolder "data/"
+#FIX: use `load("assess_data_1225.Rdata")` if the file is in the working directory
+
+#Create a density estimate of BMI for male patients
+dens_m <- density(bmi_data$bmi[bmi_data$sex == "male"])
+
+#Create a density estimate of BMI for female patients
+dens_f <- density(bmi_data$bmi[bmi_data$sex == "female"])
+
+#Plot the density curve for female BMI values in green
+plot(dens_f, col = "green")
+
+#Overlay the density curve for male BMI values on the same plot
+lines(dens_m)
+#(Optional improvement: add a legend to distinguish male vs female curves)
+
+#Select the first 200 rows as a subset for PCA and regression
+idx <- 1:200
+#Works, but this is not a random subset and may introduce bias
+#FIX: better practice would use a random sample, e.g. `idx <- sample(nrow(bmi_data), 200)`
+
+#Perform PCA on numeric columns only (exclude 1 and 9 = id and sex), centring and scaling the variables
+pca_res <- prcomp(bmi_data[idx, -c(1, 9)], center = TRUE, scale = TRUE)
+#ERROR: the argument name in prcomp() is `scale.` not `scale`, so variables are not actually scaled here
+#FIX: use `scale. = TRUE` instead of `scale = TRUE`
+
+#Plot PC1 vs PC2 for the selected subset
+plot(pca_res$x[, 1], pca_res$x[, 2], col = "blue", pch = 19)
+
+#Fit a linear model of BMI on age using the subset 'idx'
+out <- lm(bmi[idx] ~ age[idx])
+#ERROR: bmi and age are not standalone objects; they are columns within bmi_data = can't be directly used this way
+#FIX: reference them via the data frame: `out <- lm(bmi ~ age, data = bmi_data, subset = idx)`
+
+#Display the summary statistics of the linear regression model
+summary(out)
+
+#Extract the p-value for the age coefficient from the model summary
+p_val <- summary(out)$coefficients[2, 4]
+```
+
+If left uncorrected, these issues would lead to biased or unstable results. Addressing them ensures the analysis is statistically sound and reproducible.
+
+**2.1  Data Exploration**
+---
+
+### Question 6, BMI Quality Control:
+
+A quality control procedure was applied to check the plausibility of BMI values, correct unrealistic measurements, and detect multivariate outliers using PCA. The corrected BMI values, PCA results, and final cleaned dataset used in later analyses are shown below.
+
+**BMI QC Interpretation:**  
+
+The raw BMI values were inspected using sex-specific means and a boxplot. The original boxplot shows a large number of extreme BMI values in both sexes, including points close to 0 and above 300. These values fall far outside any physiologically reasonable range and confirm that the dataset contains implausible measurements requiring correction before analysis.
+
+```{r bmi-original, fig.align='center', fig.width=8, fig.height=8, echo=TRUE}
+#Keep original dataset for QC plots
+bmi_original <- bmi_data
+
+#Mean BMI by sex (original)
+mean_bmi_original <- tapply(bmi_original$bmi, bmi_original$sex, mean, na.rm = TRUE)
+
+#Create summary table for original BMI
+original_bmi_summary <- data.frame(
+  Sex = names(mean_bmi_original),
+  Mean_BMI = as.numeric(mean_bmi_original)
+)
+
+#Display the table neatly
+kable(
+  original_bmi_summary,
+  caption = "Mean BMI by Sex (Original Data)",
+  align = "c"
+)
+
+#Original BMI Boxplot
+ggplot(bmi_data, aes(x = sex, y = bmi, fill = sex)) +
+  geom_boxplot(
+    alpha = 0.85,
+    colour = "black",
+    #Bigger outlier dots for visualisation
+    outlier.size = 2,
+    outlier.alpha = 0.7
+  ) +
+  #Pink for female, blue for male
+  scale_fill_manual(values = c(
+    "female" = "#f4b6c2",
+    "male"   = "#8cb3d9"
+  )) +
+  #Expected BMI range lines
+  geom_hline(yintercept = 20, linetype = "dashed", colour = "darkred", linewidth = 1) +
+  geom_hline(yintercept = 30, linetype = "dashed", colour = "darkred", linewidth = 1) +
+  annotate("text",
+           x = 1.5,
+           y = 25,
+           label = "Expected range (20–30)",
+           colour = "darkred",
+           size = 4) +
+  labs(
+    title = "BMI by Sex (Original Data)",
+    x = "Sex",
+    y = "BMI"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none")
+
+#Identify implausible BMI (<10 or >50)
+bad_bmi_idx <- which(bmi_original$bmi < 10 | bmi_original$bmi > 50)
+```
+
+BMI values `below 10` or `above 50` were considered implausible and replaced using the standard BMI calculation (`weight / height^2`). After correction, the mean BMI for both sexes falls within the expected adult range of 20–30, and the corrected boxplot shows a much tighter, more realistic distribution. This confirms that the recalculated BMI values successfully addressed the extreme measurement errors present in the raw data.
+
+```{r bmi-corrected, fig.align='center', fig.width=8, fig.height=8, echo=TRUE}
+#Work on corrected copy of data (don't overwrite bmi_data)
+bmi_qc <- bmi_original
+
+#Recalculate BMI using weight and height (kg, cm)
+bmi_recalc <- bmi_qc$weight / ((bmi_qc$height / 100)^2)
+
+#Identify implausible BMI values (<10 or >50)
+bad_bmi_idx <- which(bmi_qc$bmi < 10 | bmi_qc$bmi > 50)
+
+#Apply corrected BMI where needed
+bmi_qc$bmi[bad_bmi_idx] <- bmi_recalc[bad_bmi_idx]
+
+#Mean BMI by sex (after correction)
+mean_bmi_sex <- tapply(bmi_qc$bmi, bmi_qc$sex, mean, na.rm = TRUE)
+
+#Summary table for cleaned mean BMI by sex
+bmi_summary <- data.frame(
+  Sex = names(mean_bmi_sex),
+  Mean_BMI = as.numeric(mean_bmi_sex)
+)
+
+#Display as neat table for HTML doc
+kable(
+  bmi_summary,
+  caption = "Mean BMI by Sex after BMI Correction",
+  align   = c("c", "c")
+)
+
+#Corrected BMI Boxplot
+ggplot(bmi_qc, aes(x = sex, y = bmi, fill = sex)) +
+  geom_boxplot(
+    alpha = 0.85,
+    colour = "black",
+    #Bigger outlier dots for visualisation
+    outlier.size = 2,
+    outlier.alpha = 0.7
+  ) +
+  #Pink for female, blue for male
+  scale_fill_manual(values = c(
+    "female" = "#f4b6c2",
+    "male"   = "#8cb3d9"
+  )) +
+  #Expected BMI range lines
+  geom_hline(yintercept = 20, linetype = "dashed", colour = "darkred", linewidth = 1) +
+  geom_hline(yintercept = 30, linetype = "dashed", colour = "darkred", linewidth = 1) +
+  annotate("text",
+           #Move annotation above the dotted lines to avoid overlap with the boxplots
+           x = 1.5,
+           y = 31.5,
+           label = "Expected range (20–30)",
+           colour = "darkred",
+           size = 4) +
+  labs(
+    title = "BMI by Sex (Corrected Data)",
+    x = "Sex",
+    y = "BMI"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none")
+```
+
+**PCA Interpretation**
+
+```{r pca-clean, echo=TRUE, fig.align='center', fig.width=8}
+#Select numeric variables for PCA (exclude categorical columns)
+num_cols <- c("age", "bai", "bmi", "body_fat", "density", "weight", "height")
+
+#Subset complete numeric cases
+complete_idx <- complete.cases(bmi_qc[, num_cols])
+bmi_num <- bmi_qc[complete_idx, num_cols]
+
+#Run PCA on numeric variables
+pca <- prcomp(bmi_num, center = TRUE, scale. = TRUE)
+pca_summary <- summary(pca)
+
+#Extract PCA scores for each sample
+pca_df <- data.frame(pca$x)
+
+#Add the sex label back for plotting (only for complete rows)
+pca_df$Sex <- bmi_qc$sex[complete_idx]
+
+#Compute z-scores for PC1 and PC2 to quantify deviation from mean
+pca_df$PC1_z <- as.numeric(scale(pca_df$PC1))
+pca_df$PC2_z <- as.numeric(scale(pca_df$PC2))
+
+#Highlight potential outliers using the 3 SD rule on PC1 or PC2
+pca_df$Group <- ifelse(
+  abs(pca_df$PC1_z) > 3 | abs(pca_df$PC2_z) > 3,
+  "Outlier",
+  as.character(pca_df$Sex)
+)
+
+#PCA scatter plot coloured by sex
+ggplot(pca_df, aes(x = PC1, y = PC2, colour = Group)) +
+  geom_point(size = 1.2, alpha = 0.85) +
+  scale_colour_manual(
+    values = c(
+      "female"  = "#f4b6c2",   
+      "male"    = "#8cb3d9",
+      #Outliers highlighted in red
+      "Outlier" = "red"        
+    )
+  ) +
+  labs(
+    title  = "Principal Component Analysis of BMI and Related Measures",
+    x = paste0("PC1 (", round(100 * pca_summary$importance[2, 1], 1), "%)"),
+    y = paste0("PC2 (", round(100 * pca_summary$importance[2, 2], 1), "%)"),
+    colour = "Group"
+  ) +
+  theme_bw(base_size = 12)
+```
+
+The PCA plot summarises major sources of variation across the cleaned numeric variables and shows two clear clusters for male and female participants, with most samples grouped closely. A small set of points sits far to the right of the main clusters. These were identified as multivariate outliers using a `>3` standard deviation threshold on PC1 or PC2. These outlier samples are likely due to measurement error. Removing them reduces noise and prevents extreme values from affecting the regression analyses in Questions 7 and 8.
+
+**Output from the update_bmi() Function**
+
+```{r update_bmi-demo, echo=TRUE}
+#Apply BMI QC function to create cleaned dataset
+bmi_clean <- update_bmi(bmi_data)
+
+#Ensure sex is stored as a factor for later regression models
+bmi_clean$sex <- factor(bmi_clean$sex)
+
+#Check dimensions of final cleaned data
+dim(bmi_clean)
+```
+
+After applying the `update_bmi()` function, implausible BMI values were corrected and PCA outliers were removed. The resulting cleaned dataset (bmi_clean, `3,180 rows × 9 variables`) was used for all regression analyses in Questions 7 and 8.
+
+**QC Summary Interpretation:**
+
+```{r qc-summary-table, echo=TRUE}
+#Create a summary of row counts at each QC step
+
+#Number of rows in original dataset
+rows_original <- nrow(bmi_data)
+
+#Rows after correcting implausible BMI
+rows_after_bmi <- nrow(bmi_qc)
+
+#Rows after removing PCA outliers
+rows_final <- nrow(bmi_clean)         
+
+#Combine row counts into a summary table
+qc_summary <- data.frame(
+  Step = c("Original dataset",
+           "After BMI correction",
+           "After PCA outlier removal"),
+  Rows = c(rows_original,
+           rows_after_bmi,
+           rows_final)
+)
+
+#Display the table neatly
+kable(
+  qc_summary,
+  caption = "Summary of Row Counts at Each Stage of Quality Control",
+  align = "c"
+)
+```
+
+The dataset initially contained `3,200` observations. BMI correction did not remove any rows, as implausible values were recalculated rather than discarded. PCA outlier detection identified `20` multivariate outliers, which were removed to produce the final cleaned dataset of `3,180` rows. Removing them improves data homogeneity and ensures more reliable regression results in subsequent questions.
+
+**2.2 Regression Analysis**
+---
+
+### Question 7, Simple Linear Regression: 
+
+A simple linear regression model was fitted to evaluate the relationship between BMI and body fat (%). The results and diagnostic plots are shown below.
+
+**Linear Regression Model Interpretation:**
+
+The fitted model shows a clear positive association between BMI and body fat. The estimated slope (`β₁ ≈ 0.95`) indicates that, on average, each one unit increase in BMI is associated with roughly a one percentage point increase in body fat. BMI is highly statistically significant (`p < 2 × 10⁻¹⁶`), providing strong evidence for a linear relationship between the two variables.
+
+```{r simple-regression, echo=TRUE}
+#Fit simple linear regression model
+ls_fit <- lm(body_fat ~ bmi, data = bmi_clean)
+
+#Show model summary
+summary(ls_fit)
+```
+
+However, the model explains only around `27%` of the variation in body fat (`R² = 0.27`). This suggests that although BMI is a relevant predictor, most of the variability is driven by additional physiological or demographic factors that are not captured in a single-predictor model.
+
+**Scatter Plot Interpretation:**
+
+```{r q7-regression-plot, echo=TRUE, fig.align='center', fig.width=7, warning=FALSE, message=FALSE}
+#Scatterplot of body fat vs BMI with fitted regression line
+ggplot(bmi_clean, aes(x = bmi, y = body_fat)) +
+  
+  #Plot raw data points (semi-transparent for overlap)
+  geom_point(alpha = 0.4, colour = "#3b5a9b") +
+  
+  #Add fitted simple linear regression line
+  geom_smooth(method = "lm", se = TRUE, colour = "darkred", linewidth = 1) +
+  labs(
+    title = "Simple Linear Regression of Body Fat on BMI",
+    x = "BMI",
+    y = "Body Fat (%)"
+  )
+```
+
+The scatter plot shows a broadly linear relationship between BMI and body fat, consistent with the fitted model. However, the vertical spread of points increases at higher BMI values, indicating greater variability in body fat among individuals with higher BMI. This pattern suggests a violation of the constant-variance assumption (heteroscedasticity) and implies that a single-predictor model does not fully capture the structure of the data.
+
+**Residual Diagnostics Overview:**
+
+In the residuals versus fitted plot, the residuals are centred around zero, supporting the assumption of linearity. However, the vertical spread of the residuals increases with the fitted values, creating a mild funnel shape. This indicates heteroscedasticity, meaning the variance of the residuals is not constant across the range of predicted body fat values. A few points appear as potential outliers, but they do not drive the overall pattern. Overall, the plot suggests that while a linear model is reasonable, the constant-variance assumption is not fully satisfied and BMI alone does not capture all variation in body fat.
+
+```{r residual-graphs, echo=TRUE, fig.align='center', fig.width=7}
+#Extract residuals
+ls_residual <- residuals(ls_fit)
+
+#Residuals vs Fitted (checks linearity + constant variance)
+plot(ls_fit, 1)
+
+#Q–Q Plot (checks normality of residuals)
+plot(ls_fit, 2)
+```
+
+In the Q–Q plot, the residuals follow the reference line in the middle of the distribution, indicating that the central residuals are approximately normal. However, the points deviate in both tails, with several high and low residuals falling away from the line. This suggests heavier than normal tails and some outliers. Overall, the plot shows slight deviations from a normal distribution, which is consistent with BMI alone not fully explaining variation in body fat.
+
+### Question 8, Multiple Linear Regression: 
+
+A multiple linear regression model incorporating age, BMI, BAI, density, weight, height, and sex was used to assess their combined ability to predict body fat (%). The full model and diagnostic plots are shown below.
+
+**Multiple Regression Model Interpretation:**
+
+```{r multiple-regression, echo=TRUE}
+#Fit multiple linear regression model for body fat
+ml_fit <- lm(
+  body_fat ~ age + bmi + bai + density + weight + height + sex,
+  data = bmi_clean
+)
+
+#Display model summary with coefficient significance
+summary(ml_fit)
+```
+
+In the multiple regression model, body fat is modelled as a function of age, BMI, BAI, density, weight, height and sex. The overall model fit is extremely high (`R² ≈ 0.9963`), indicating that the covariates collectively explain almost all of the variation in body fat. Density is by far the dominant predictor (large negative coefficient with `p < 2 × 10⁻¹⁶`), and BAI also remains statistically significant (`p < 0.001`). Once density and BAI are included, BMI, age, weight, height, and sex are no longer significant, suggesting that density already explains most of the variation these variables would contribute.
+
+**Scatterplot Interpretation:**
+
+```{r q8-regression-plot, echo=TRUE, fig.align='center', fig.width=7}
+#Create a data frame for plotting observed vs fitted body fat values
+multi_fit_df <- data.frame(
+  Fitted = fitted(ml_fit),
+  Observed = ml_fit$model$body_fat    
+)
+
+#Scatterplot comparing observed and fitted values
+ggplot(multi_fit_df, aes(x = Fitted, y = Observed)) +
+  geom_point(alpha = 0.4, colour = "#3b5a9b") +
+  geom_abline(intercept = 0, slope = 1, #Add 1:1 reference line
+              colour = "darkred", linewidth = 1) +
+  labs(
+    title = "Observed vs Fitted Body Fat (%) (Multiple Regression)",
+    x = "Fitted Body Fat (%)",
+    y = "Observed Body Fat (%)"
+  )
+```
+
+The observed-versus-fitted scatter plot shows points lying almost exactly on the 1:1 reference line, indicating that the multiple regression model predicts body fat with very high accuracy. This is consistent with the model’s `R² of 0.9963` and suggests that the included covariates capture nearly all of the variability in body fat.
+
+**Residual Diagnostics Overview:**
+
+In the residuals-versus-fitted plot, the residuals are tightly centred around zero with no visible pattern, indicating that the linearity assumption is satisfied. The spread remains fairly constant across fitted values, suggesting that the constant-variance assumption holds much better than in the simple regression model. A few mild outliers appear, but none are influential. Overall, the plot indicates that the multiple regression model provides a good fit.
+
+```{r residual-graphs-q8, fig.align='center', fig.width=7, echo=TRUE}
+#Extract residuals
+ml_residual <- residuals(ml_fit)
+
+#Residuals vs Fitted (checks linearity + constant variance)
+plot(ml_fit, 1)
+
+#Q–Q Plot (checks normality of residuals)
+plot(ml_fit, 2)
+```
+
+The Q–Q plot shows residuals lying very close to the reference line, with only minor deviations in the extreme tails. This indicates that the normality assumption is well satisfied. Compared with the simple BMI-only model, the multiple regression model provides a much better approximation to normally distributed errors and captures the underlying structure of the data more effectively.
+
+Disclaimer
+---
+
+ChatGPT was used only to troubleshoot minor coding errors, confirm that my functions met the requirements of each question, and assist with small HTML formatting improvements. All written explanations were carried out independently. Below are examples of the prompts and brief outputs used:
+
+ 1) Prompt: "Why is my PCA not scaling? I wrote `prcomp(data, scale = TRUE)` but it doesn’t seem to work."
+ 
+ Response: “In `prcomp()`, the correct argument is scale. rather than scale. Use `prcomp(data, center = TRUE, scale. = TRUE)` to ensure variables are standardised.”
+ 
+ 2) Prompt: “I am getting a ggplot warning about `..density..` being deprecated. Do I need to fix this?”
+ 
+ Response: “This warning is harmless. The histogram will still render correctly. You can optionally replace `..density..` with `after_stat(density)`, but it is not required.”
+ 
+ 3) Prompt: “My `play_mc()` function always returns 70 even on the first move. What is wrong?”
+ 
+ Response: “You have the line `if (pos < 70) { pos <- 70 }`, which forces every move to the summit. Replace it with `pos <- start_pos + die` and apply slide/climb rules afterward.”
+ 
+ 4) Prompt: “Do I need to explicitly write `n_simulations = 100` and `n_turns = 10` if they’re already the defaults?”
+ 
+ Response: “The function will work without specifying them, but including the values makes your code clearer to the marker and shows you are intentionally using the required settings.”
+
+ 5) Prompt: “How can I display my summary tables neatly in the knitted HTML document? I get marked on presentation.”
+
+Response: “`kable()` is a good choice for clean HTML tables. You can format your table by writing:
+
+kable(your_table,
+      caption = "Summary Statistics",
+      align = "c")
+
+This will centre the columns and produce a clear, readable table in the HTML output. You do not need additional styling unless you want to customise the appearance further.”
+
+6) Prompt: “What thresholds should I use to flag implausible BMI values for adults in this dataset?”
+
+Response: “Typical adult BMI values cluster around 20–30, so values very close to 0 or in the hundreds almost certainly reflect data entry or unit errors rather than real measurements. As a pragmatic QC rule, you can treat BMI values < 10 or > 50 as implausible and recalculate them using the standard formula from weight and height, while still allowing realistic high-BMI individuals to remain in the dataset.”

@@ -22,7 +22,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r import-functions, include=FALSE}
 #Import functions from the separate R script
-source("EMS_Coursework_Functions.R")
+source("scripts/EMS_Coursework_Functions.R")
 ```
 
 **1  Markov Chain Game Simulations**

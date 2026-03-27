@@ -259,7 +259,7 @@ ggplot(df_pos_alt, aes(x = Position)) +
 
 ```{r load-data, echo=FALSE}
 #Load the dataset used throughout the analysis
-load("assess_data_1225.Rdata")
+load("data/assess_data_1225.Rdata")
 ```
 
 ### Question 5, Code Review:
